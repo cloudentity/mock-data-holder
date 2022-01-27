@@ -94,7 +94,7 @@ namespace CDR.DataHolder.Resource.API.UnitTests
                 NewestTime = new DateTime(2021, 4, 28),
                 Page = "1",
                 PageSize = "10"
-            }, "Bearer test-token") as OkObjectResult;
+            }) as OkObjectResult;
 
             var response = result.Value as ResponseAccountTransactions;
 
@@ -170,7 +170,7 @@ namespace CDR.DataHolder.Resource.API.UnitTests
                 MinAmount = 0,
                 Page = "1",
                 PageSize = "10"
-            }, "Bearer test-token") as OkObjectResult;
+            }) as OkObjectResult;
 
             var response = result.Value as ResponseAccountTransactions;
 

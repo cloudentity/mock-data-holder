@@ -98,10 +98,8 @@ namespace CDR.DataHolder.Resource.API.Controllers
 			[FromQuery(Name = "open-status"), CheckOpenStatus] string openStatus,
 			[FromQuery(Name = "product-category"), CheckProductCategory] string productCategory,
 			[FromQuery(Name = "page"), CheckPage] string page,
-			[FromQuery(Name = "page-size"), CheckPageSize] string pageSize,
-			[FromHeader(Name = "Authorization")] string token)
+			[FromQuery(Name = "page-size"), CheckPageSize] string pageSize)
 		{
-			token = token.Replace("Bearer ", "");
 			_logger.LogInformation($"Request received to {nameof(ResourceController)}.{nameof(GetAccounts)}");
 
 			// Each customer id is different for each ADR based on PPID.
@@ -120,7 +118,7 @@ namespace CDR.DataHolder.Resource.API.Controllers
 				return new DataHolderForbidResult(statusErrors);
 			}
 
-			var accountIds = await GetAccountIds(User, token); 
+			var accountIds = await GetAccountIds(User); 
 			// Get accounts
 			var accountFilter = new AccountFilter(accountIds)
 			{
@@ -154,11 +152,9 @@ namespace CDR.DataHolder.Resource.API.Controllers
 		[CheckAuthDate]
 		[ApiVersion("1")]
 		public async Task<IActionResult> GetTransactions(
-			[FromQuery] RequestAccountTransactions request,
-			[FromHeader(Name = "Authorization")] string token
+			[FromQuery] RequestAccountTransactions request
 		)
 		{
-			token = token.Replace("Bearer ", "");
 			_logger.LogInformation($"Request received to {nameof(ResourceController)}.{nameof(GetTransactions)}");
 
 			// Each customer id is different for each ADR based on PPID.
@@ -203,7 +199,7 @@ namespace CDR.DataHolder.Resource.API.Controllers
 					return new NotFoundObjectResult(new ResponseErrorList(Error.NotFound()));
 				}
 
-				var accountIds = await GetAccountIds(User, token); 
+				var accountIds = await GetAccountIds(User); 
 
 				if (!accountIds.Contains(request.AccountId))
 				{
@@ -251,7 +247,7 @@ namespace CDR.DataHolder.Resource.API.Controllers
 			var softwareProductId = this.GetSoftwareProductId();
 			if (softwareProductId == null)
 			{
-				// errorList.Errors.Add(Error.UnknownError()); // TODO reenable it and set this value using extensions
+				errorList.Errors.Add(Error.UnknownError());
 				return errorList;
 			}
 
@@ -304,9 +300,9 @@ namespace CDR.DataHolder.Resource.API.Controllers
 			return customerId;
 		}
 
-		private async Task<string[]> GetAccountIds(ClaimsPrincipal principal, string token)
+		private async Task<string[]> GetAccountIds(ClaimsPrincipal principal)
 		{
-			var arrangement = await _acpManagementService.IntrospecArrangement(token);
+			var arrangement = await _acpManagementService.IntrospecArrangement(principal.FindFirst("cdr_arrangement_id")?.Value);
 
 			return arrangement.AccountIDs;
 		}

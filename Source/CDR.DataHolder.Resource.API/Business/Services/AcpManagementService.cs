@@ -30,9 +30,7 @@ namespace CDR.DataHolder.Resource.API.Business.Services {
             _logger = logger;
         }
 
-        public async Task<PrivateArrangement> IntrospecArrangement(string token) {
-            var decodedJWT = new JwtSecurityTokenHandler().ReadJwtToken(token);
-            var arrangementID = decodedJWT.Payload["cdr_arrangement_id"];
+        public async Task<PrivateArrangement> IntrospecArrangement(string arrangementID) {
             var httpClient = await getAuthenticatedClient();
             var acpWorkspace = _config["AcpCDRWorkspace"];
             var arrangementIntrospectionEndpoint = $"{_config["AcpManagementBaseURI"]}/servers/{acpWorkspace}/cdr/arrangements/{arrangementID}";             
