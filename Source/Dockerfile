@@ -38,6 +38,10 @@ COPY supervisord.conf /app/publish/supervisord.conf
 FROM base AS final
 WORKDIR /app
 
+RUN apt-get update && apt-get install -y supervisor
+
+RUN apt-get update && apt-get install -y sudo
+
 COPY --from=publish /app/publish/supervisord.conf .
 COPY --from=publish /app/publish/resource ./resource
 COPY --from=publish /app/publish/admin ./admin
@@ -45,10 +49,6 @@ COPY --from=publish /app/publish/manage ./manage
 COPY --from=publish /app/publish/idsvr ./idsvr
 COPY --from=publish /app/publish/gateway-mtls ./gateway-mtls
 COPY --from=publish /app/publish/public ./public
-
-RUN apt-get update && apt-get install -y supervisor
-
-RUN apt-get update && apt-get install -y sudo
 
 RUN sudo cp ./gateway-mtls/Certificates/ca.crt /usr/local/share/ca-certificates/ca.crt
 

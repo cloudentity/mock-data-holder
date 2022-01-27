@@ -11,7 +11,7 @@ namespace CDR.DataHolder.Resource.API.Business.Filters
     public class CheckScopeAttribute : ActionFilterAttribute
     {
         private readonly string _scope;
-        private const string SCOPE_CLAIM_NAME = "scope";
+        private const string SCOPE_CLAIM_NAME = "http://schemas.microsoft.com/identity/claims/scope";
 
         public CheckScopeAttribute(string scope)
         {

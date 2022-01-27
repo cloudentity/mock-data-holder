@@ -71,27 +71,23 @@ namespace CDR.DataHolder.API.Infrastructure.Authorisation
 
             // Introspect the access token.
             var accessToken = authHeader.ToString().Replace("Bearer ", "");
-            var endpoint = _config["AccessTokenIntrospectionEndpoint"];
 
+            var endpoint = _config["IdentityServerUrl"] + "/userinfo";
+            _logger.LogInformation($"Calling userinfo endpoint: {endpoint}");
+ 
             var handler = new HttpClientHandler();
             handler.ServerCertificateCustomValidationCallback = (a, b, c, d) => true;
             var httpClient = new HttpClient(handler);
-
-            var formFields = new List<KeyValuePair<string, string>>();
-            formFields.Add(new KeyValuePair<string, string>("token", accessToken));
-
-            var response = await httpClient.PostAsync(endpoint, new FormUrlEncodedContent(formFields));
+            httpClient.DefaultRequestHeaders.Add("Authorization", "Bearer " + accessToken);
+    
+            var response = await httpClient.GetAsync(endpoint);
 
             if (response.IsSuccessStatusCode)
             {
-                var body = await response.Content.ReadAsStringAsync();
-                var json = JsonConvert.DeserializeObject<JObject>(body);
-                return json.GetValue("active").Value<bool>();
+                return true;
             }
-            else
-            {
-                return false;
-            }
+
+            return false;
         }
     }
 }

@@ -40,6 +40,7 @@ namespace CDR.DataHolder.Resource.API.UnitTests
             var idPermanenceManager = _serviceProvider.GetRequiredService<IIdPermanenceManager>();
             var loggerFactory = _serviceProvider.GetRequiredService<ILoggerFactory>();
             var logger = loggerFactory.CreateLogger<ResourceController>();
+            var acpManagementService = _serviceProvider.GetRequiredService<AcpManagementService>();
 
             //Generate Account Permanence Id
             var accountId = "1122334455";
@@ -81,7 +82,7 @@ namespace CDR.DataHolder.Resource.API.UnitTests
                 HttpContext = httpContext
             };
 
-            var controller = new ResourceController(resourceRepository, statusRepository, null, logger, transactionsService, idPermanenceManager);
+            var controller = new ResourceController(resourceRepository, statusRepository, null, logger, transactionsService, idPermanenceManager, acpManagementService);
             controller.ControllerContext = controllerContext;
             controller.Url = mockUrlHelper.Object;
 
@@ -93,7 +94,7 @@ namespace CDR.DataHolder.Resource.API.UnitTests
                 NewestTime = new DateTime(2021, 4, 28),
                 Page = "1",
                 PageSize = "10"
-            }) as OkObjectResult;
+            }, "Bearer test-token") as OkObjectResult;
 
             var response = result.Value as ResponseAccountTransactions;
 
@@ -115,6 +116,7 @@ namespace CDR.DataHolder.Resource.API.UnitTests
             var idPermanenceManager = _serviceProvider.GetRequiredService<IIdPermanenceManager>();
             var loggerFactory = _serviceProvider.GetRequiredService<ILoggerFactory>();
             var logger = loggerFactory.CreateLogger<ResourceController>();
+            var acpManagementService = _serviceProvider.GetRequiredService<AcpManagementService>();
 
             //Generate Account Permanence Id
             var accountId = "1122334455";
@@ -156,7 +158,7 @@ namespace CDR.DataHolder.Resource.API.UnitTests
                 HttpContext = httpContext
             };
 
-            var controller = new ResourceController(resourceRepository, statusRepository, null, logger, transactionsService, idPermanenceManager);
+            var controller = new ResourceController(resourceRepository, statusRepository, null, logger, transactionsService, idPermanenceManager, acpManagementService);
             controller.ControllerContext = controllerContext;
             controller.Url = mockUrlHelper.Object;
 
@@ -168,7 +170,7 @@ namespace CDR.DataHolder.Resource.API.UnitTests
                 MinAmount = 0,
                 Page = "1",
                 PageSize = "10"
-            }) as OkObjectResult;
+            }, "Bearer test-token") as OkObjectResult;
 
             var response = result.Value as ResponseAccountTransactions;
 

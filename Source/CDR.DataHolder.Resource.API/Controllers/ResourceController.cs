@@ -30,13 +30,15 @@ namespace CDR.DataHolder.Resource.API.Controllers
 		private readonly ILogger<ResourceController> _logger;
 		private readonly ITransactionsService _transactionsService;
 		private readonly IIdPermanenceManager _idPermanenceManager;
+        private readonly AcpManagementService _acpManagementService;
 
-		public ResourceController(IResourceRepository resourceRepository,
+        public ResourceController(IResourceRepository resourceRepository,
 									IStatusRepository statusRepository,
 									IMapper mapper,
 									ILogger<ResourceController> logger,
 									ITransactionsService transactionsService,
-									IIdPermanenceManager idPermanenceManager)
+									IIdPermanenceManager idPermanenceManager,
+									AcpManagementService acpManagementService)
 		{
 			_resourceRepository = resourceRepository;
 			_statusRepository = statusRepository;
@@ -44,6 +46,7 @@ namespace CDR.DataHolder.Resource.API.Controllers
 			_logger = logger;
 			_transactionsService = transactionsService;
 			_idPermanenceManager = idPermanenceManager;
+			_acpManagementService = acpManagementService;
 		}
 
 		[PolicyAuthorize(AuthorisationPolicy.GetCustomersApi)]
@@ -60,7 +63,7 @@ namespace CDR.DataHolder.Resource.API.Controllers
 			// Therefore we need to look up the CustomerClient table to find the actual customer id.
 			// This can be done once we have a client id (Registration) and a valid access token.
 			var customerId = GetCustomerId(this.User);
-			if (customerId == Guid.Empty)
+			if (customerId == String.Empty)
 			{
 				// TODO: Implement response handling when the acceptance criteria is available.
 				return BadRequest();
@@ -95,15 +98,17 @@ namespace CDR.DataHolder.Resource.API.Controllers
 			[FromQuery(Name = "open-status"), CheckOpenStatus] string openStatus,
 			[FromQuery(Name = "product-category"), CheckProductCategory] string productCategory,
 			[FromQuery(Name = "page"), CheckPage] string page,
-			[FromQuery(Name = "page-size"), CheckPageSize] string pageSize)
+			[FromQuery(Name = "page-size"), CheckPageSize] string pageSize,
+			[FromHeader(Name = "Authorization")] string token)
 		{
+			token = token.Replace("Bearer ", "");
 			_logger.LogInformation($"Request received to {nameof(ResourceController)}.{nameof(GetAccounts)}");
 
 			// Each customer id is different for each ADR based on PPID.
 			// Therefore we need to look up the CustomerClient table to find the actual customer id.
 			// This can be done once we have a client id (Registration) and a valid access token.
 			var customerId = GetCustomerId(this.User);
-			if (customerId == Guid.Empty)
+			if (customerId.Equals(String.Empty))
 			{
 				return new BadRequestObjectResult(new ResponseErrorList(Error.UnknownError()));
 			}
@@ -115,8 +120,9 @@ namespace CDR.DataHolder.Resource.API.Controllers
 				return new DataHolderForbidResult(statusErrors);
 			}
 
+			var accountIds = await GetAccountIds(User, token); 
 			// Get accounts
-			var accountFilter = new AccountFilter(GetAccountIds(User))
+			var accountFilter = new AccountFilter(accountIds)
 			{
 				CustomerId = customerId,
 				IsOwned = isOwned,
@@ -125,6 +131,7 @@ namespace CDR.DataHolder.Resource.API.Controllers
 			};
 			int pageNumber = string.IsNullOrEmpty(page) ? 1 : int.Parse(page);
 			int pageSizeNumber = string.IsNullOrEmpty(pageSize) ? 25 : int.Parse(pageSize);
+			
 			var accounts = await _resourceRepository.GetAllAccounts(accountFilter, pageNumber, pageSizeNumber);
 			var response = _mapper.Map<ResponseBankingAccountList>(accounts);
 
@@ -133,15 +140,6 @@ namespace CDR.DataHolder.Resource.API.Controllers
 			{
 				return new BadRequestObjectResult(new ResponseErrorList(Error.PageOutOfRange()));
 			}
-
-			var softwareProductId = this.User.FindFirst(Constants.TokenClaimTypes.SoftwareId)?.Value;
-			var idParameters = new IdPermanenceParameters
-			{
-				SoftwareProductId = softwareProductId,
-				CustomerId = customerId.ToString()
-			};
-
-			_idPermanenceManager.EncryptIds(response.Data.Accounts, idParameters, a => a.AccountId);
 
 			// Set pagination meta data
 			response.Links = this.GetLinks(nameof(GetAccounts), pageNumber, response.Meta.TotalPages.GetValueOrDefault(), pageSizeNumber);
@@ -155,15 +153,19 @@ namespace CDR.DataHolder.Resource.API.Controllers
 		[CheckVersion(1, 1)]
 		[CheckAuthDate]
 		[ApiVersion("1")]
-		public async Task<IActionResult> GetTransactions([FromQuery] RequestAccountTransactions request)
+		public async Task<IActionResult> GetTransactions(
+			[FromQuery] RequestAccountTransactions request,
+			[FromHeader(Name = "Authorization")] string token
+		)
 		{
+			token = token.Replace("Bearer ", "");
 			_logger.LogInformation($"Request received to {nameof(ResourceController)}.{nameof(GetTransactions)}");
 
 			// Each customer id is different for each ADR based on PPID.
 			// Therefore we need to look up the CustomerClient table to find the actual customer id.
 			// This can be done once we have a client id (Registration) and a valid access token.
 			request.CustomerId = GetCustomerId(this.User);
-			if (request.CustomerId == Guid.Empty)
+			if (request.CustomerId == String.Empty)
 			{
 				return new BadRequestObjectResult(new ResponseErrorList(Error.UnknownError()));
 			}
@@ -201,7 +203,9 @@ namespace CDR.DataHolder.Resource.API.Controllers
 					return new NotFoundObjectResult(new ResponseErrorList(Error.NotFound()));
 				}
 
-				if (!GetAccountIds(User).Contains(request.AccountId))
+				var accountIds = await GetAccountIds(User, token); 
+
+				if (!accountIds.Contains(request.AccountId))
 				{
 					// A valid consent exists with bank:transactions:read scope and the Account Id can be found for the supplied customer
 					// but this Account Id is not in the list of consented Account Ids
@@ -247,7 +251,7 @@ namespace CDR.DataHolder.Resource.API.Controllers
 			var softwareProductId = this.GetSoftwareProductId();
 			if (softwareProductId == null)
 			{
-				errorList.Errors.Add(Error.UnknownError());
+				// errorList.Errors.Add(Error.UnknownError()); // TODO reenable it and set this value using extensions
 				return errorList;
 			}
 
@@ -255,7 +259,7 @@ namespace CDR.DataHolder.Resource.API.Controllers
 			var softwareProduct = await _statusRepository.GetSoftwareProduct(softwareProductId.Value);
 			if (softwareProduct == null)
 			{
-				errorList.Errors.Add(Error.DataRecipientSoftwareProductNotActive());
+				errorList.Errors.Add(Error.DataRecipientSoftwareProductNotActive()); 
 				return errorList;
 			}
 
@@ -293,22 +297,18 @@ namespace CDR.DataHolder.Resource.API.Controllers
             return errorList;
 		}
 
-		private Guid GetCustomerId(ClaimsPrincipal principal)
+		private String GetCustomerId(ClaimsPrincipal principal)
 		{
 			var customerId = principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-			if (!Guid.TryParse(customerId, out var customerIdGuid))
-			{
-				return Guid.Empty;
-			}
-			return customerIdGuid;
+
+			return customerId;
 		}
 
-		private string[] GetAccountIds(ClaimsPrincipal principal)
+		private async Task<string[]> GetAccountIds(ClaimsPrincipal principal, string token)
 		{
-			// Check if consumer has granted consent to this account Id
-			return principal.FindAll(Constants.TokenClaimTypes.AccontId)
-				.Select(c => c.Value)
-				.ToArray();
+			var arrangement = await _acpManagementService.IntrospecArrangement(token);
+
+			return arrangement.AccountIDs;
 		}
 	}
 }

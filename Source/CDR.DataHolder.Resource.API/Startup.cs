@@ -147,6 +147,7 @@ namespace CDR.DataHolder.Resource.API
             services.AddSingleton<IAuthorizationHandler, ScopeHandler>();
             services.AddSingleton<IAuthorizationHandler, MtlsHandler>();
             services.AddSingleton<IAuthorizationHandler, AccessTokenHandler>();
+            services.AddSingleton<AcpManagementService, AcpManagementService>();
             services.AddScoped<IClaimsTransformation, TokenTransformService>();
 
             services.AddSwaggerGen(c =>

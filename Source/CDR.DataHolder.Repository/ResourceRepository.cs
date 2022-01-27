@@ -21,12 +21,12 @@ namespace CDR.DataHolder.Repository
 			this._mapper = mapper;
 		}
 
-		public async Task<Customer> GetCustomer(Guid customerId)
+		public async Task<Customer> GetCustomer(String customerId)
 		{
 			var customer = await _dataHolderDatabaseContext.Customers.AsNoTracking()
 				.Include(p => p.Person)
 				.Include(o => o.Organisation)
-				.FirstOrDefaultAsync(customer => customer.CustomerId == customerId);
+				.FirstOrDefaultAsync(customer => customer.CustomerId.ToString() == customerId);
 			if (customer == null)
 			{
 				return null;
@@ -77,8 +77,7 @@ namespace CDR.DataHolder.Repository
 			IQueryable<Entities.Account> accountsQuery = _dataHolderDatabaseContext.Accounts.AsNoTracking()
 				.Include(account => account.Customer)
 				.Where(account => 
-					accountFilter.AllowedAccountIds.Contains(account.AccountId)	
-					&& account.Customer.CustomerId == accountFilter.CustomerId);
+					accountFilter.AllowedAccountIds.Contains(account.AccountId));
 
 			// Apply filters.
 			if (!string.IsNullOrEmpty(accountFilter.OpenStatus))
@@ -111,9 +110,9 @@ namespace CDR.DataHolder.Repository
 		/// <param name="accountId">Account ID</param>
 		/// <param name="customerId">Customer ID</param>
 		/// <returns>True if the customer can access the account, otherwise false.</returns>
-		public async Task<bool> CanAccessAccount(string accountId, Guid customerId)
+		public async Task<bool> CanAccessAccount(string accountId, String customerId)
 		{
-			return await _dataHolderDatabaseContext.Accounts.AnyAsync(a => a.AccountId == accountId && a.CustomerId == customerId);
+			return await _dataHolderDatabaseContext.Accounts.AnyAsync(a => a.AccountId == accountId && a.CustomerId.ToString() == customerId);
 		}
 
 		/// <summary>
@@ -180,11 +179,11 @@ namespace CDR.DataHolder.Repository
             return result;
         }
 
-        public async Task<Account[]> GetAllAccountsByCustomerIdForConsent(Guid customerId)
+        public async Task<Account[]> GetAllAccountsByCustomerIdForConsent(String customerId)
         {
             var allAccounts = await _dataHolderDatabaseContext.Accounts.AsNoTracking()
                 .Include(account => account.Customer)
-                .Where(account => account.Customer.CustomerId == customerId)
+                .Where(account => account.Customer.CustomerId.ToString() == customerId)
                 .OrderBy(account => account.DisplayName).ThenBy(account => account.AccountId)
                 .ToListAsync();
 

@@ -1,3 +1,5 @@
+using System;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using CDR.DataHolder.API.Gateway.mTLS.Certificates;
@@ -84,7 +86,7 @@ namespace CDR.DataHolder.API.Gateway.mTLS
                     // The thumbprint and common name from the client certificate are extracted and added as headers for the downstream services.
                     if (clientCert != null)
                     {
-                        httpContext.Request.Headers.Add("X-TlsClientCertThumbprint", clientCert.Thumbprint);
+                        httpContext.Request.Headers.Add("X-TlsClientCertThumbprint", GetS256Thumbprint(clientCert));
                         httpContext.Request.Headers.Add("X-TlsClientCertCN", clientCert.GetNameInfo(X509NameType.SimpleName, false));
                     }
 
@@ -97,6 +99,14 @@ namespace CDR.DataHolder.API.Gateway.mTLS
 
             app.UseAuthentication();
             app.UseOcelot(pipelineConfiguration).Wait();
+        }
+
+        private string GetS256Thumbprint(X509Certificate2 cert) {
+            Byte[] hashBytes;
+            using (var hasher = SHA256.Create()) {
+                hashBytes = hasher.ComputeHash(cert.RawData);
+            }
+            return Convert.ToBase64String(hashBytes).TrimEnd('=').Replace('+', '-').Replace('/', '_');
         }
     }
 }
